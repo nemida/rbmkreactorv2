@@ -1,54 +1,47 @@
-<h1> RBMK Reactor Simulation</h1>
+# RBMK-1000 Reactor Control Simulator
 
 ![Project Screenshot](raa.jpeg)
 
-<p>This project simulates the behavior of a RBMK nuclear reactor core using <strong>HTML</strong>, <strong>CSS</strong>, and <strong>JavaScript</strong>. It features an interactive UI with control rods, real-time temperature and power graphs, and simplified reactor physics modeling.</p>
+A browser-based simulation of an RBMK-1000 nuclear reactor core, developed using HTML, CSS, and JavaScript. This project provides an interactive control room interface featuring real-time telemetry, core channel management, and simplified reactor physics modeling, including the AZ-5 emergency shutdown protocol.
 
-<hr>
+---
 
-<h2>Interactive Reactor Core</h2>
-<ul>
-  <li><strong>20 x 30 Grid (594 cells):</strong> Each cell represents a control rod or moderator.</li>
-  <li><strong>Click</strong> cells to manually insert or withdraw individual rods.</li>
-</ul>
+## Features
 
-<h2>Control Rod Colors</h2>
-<ul>
-  <li><span style="color:gray;"><strong>Gray:</strong></span> Idle rods (not inserted)</li>
-  <li><span style="color:red;"><strong>Red:</strong></span> Active rods (inserted) — reduce reactivity</li>
-  <li><span style="color:green;"><strong>Green:</strong></span> Moderators (non-removable) — increase neutron flux</li>
-</ul>
+### Interactive Core Channel Map
+*   **Circular Core Geometry:** The interface models the upper biological shield using a dynamic, mathematically bounded circular grid.
+*   **Manual Control:** Click individual channels to insert or withdraw control rods and manage localized reactivity.
+*   **Channel States:**
+    *   **Dark Gray:** Withdrawn / Idle rods.
+    *   **Amber:** Inserted / Active control rods (reduces reactivity).
+    *   **Green:** Fixed graphite moderators (increases neutron flux).
 
-<h2>Real-time Graphs</h2>
-<ul>
-  <li><strong>Power Output (MW):</strong> Green line chart</li>
-  <li><strong>Core Temperature (°C):</strong> Orange line chart</li>
-  <li>Both charts auto-update with recent data and resize with the window</li>
-</ul>
+### Real-Time Telemetry and Analytics
+*   **Analog Gauges:** Visual indicators for Thermal Power, Reactivity Percentage, and Core Temperature.
+*   **Live Data Charting:** Integrated Chart.js visualizations that monitor historical data continuously:
+    *   Thermal Power (MW)
+    *   Core Temperature (°C)
+    *   Xenon-135 Concentration
+*   **Control Room Log:** A real-time scrolling console that tracks operator actions, automated system responses, and system alerts.
 
-<h2>Controls</h2>
-<ul>
-  <li><strong>Insert 10 Rods:</strong> Adds 10 idle rods (reduces reactivity)</li>
-  <li><strong>Withdraw 10 Rods:</strong> Removes 10 active rods (increases reactivity)</li>
-  <li><strong>SCRAM:</strong> Emergency shutdown — inserts all rods instantly</li>
-  <li><strong>Reset:</strong> Resets all parameters and graphs to initial state</li>
-</ul>
+### Reactor Controls
+*   **Batch Operations:** Instantly insert or withdraw rods in increments of 10 to manage core output rapidly.
+*   **AZ-5 (SCRAM):** Emergency defense protocol that simultaneously inserts all available control rods into the core.
+*   **Autopilot:** An automated system toggle that manages rod positions to maintain safe thermal and power output parameters.
+*   **System Reset:** Restores the reactor to its initial nominal standby state.
 
-<h2>Status Display</h2>
-<ul>
-  <li><strong>Power Output:</strong> Live value in megawatts</li>
-  <li><strong>Reactivity:</strong> % based on rods, voids, and xenon effects</li>
-  <li><strong>Temperature:</strong> Core temp in °C with visual alerts:</li>
-  <ul>
-    <li>🔵 <strong>Normal</strong>: No label</li>
-    <li>🟡 <strong>WARNING</strong>: Above 500 °C</li>
-    <li>🔴 <strong>CRITICAL</strong>: Above 700 °C (blinking)</li>
-  </ul>
-</ul>
+### Audio and Visual Alert System
+*   **Status Monitoring:** The system dynamically transitions between NOMINAL, WARNING, DANGER, and FATAL states based on core temperature.
+*   **Auditory Feedback:** Features authentic mechanical switches, alarm klaxons, and synthesized voice alerts for critical temperature thresholds.
 
-<h2>Reactor Physics (Simplified)</h2>
-<ul>
-  <li><strong>Positive Void Coefficient:</strong> Reactivity increases with temperature</li>
-  <li><strong>Xenon Poisoning:</strong> Xenon-135 buildup decreases reactivity</li>
-  <li><strong>Heat/Cooling:</strong> Power output generates heat, opposed by passive cooling</li>
-</ul>
+### Simulated Reactor Physics
+*   **Positive Void Coefficient:** Models the dangerous behavior where an increase in temperature creates steam voids, inadvertently increasing reactivity.
+*   **Xenon Poisoning:** Simulates Xenon-135 buildup during operation, which acts as a neutron absorber and creates reactor stalling conditions.
+*   **Graphite Tip Displacement:** accurately models the fatal design flaw of the RBMK reactor, where initiating an AZ-5 SCRAM causes a brief, massive spike in reactivity before the boron rods can engage.
+*   **Thermal Thermodynamics:** Calculates heat generation versus passive cooling rates to determine core stability or catastrophic failure (meltdown).
+
+---
+
+## Usage
+
+Simply open the `index.html` file in any modern web browser. No external dependencies or build steps are required, though an active internet connection is necessary to load the Chart.js library via CDN.
