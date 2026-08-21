@@ -1,417 +1,1508 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>RBMK Reactor Simulation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RBMK-1000 Reactor Control — AZ-5 Simulator</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            margin: 0;
-            padding: 20px;
+      @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+      :root {
+        --panel-dark: #17160f;
+        --panel-mid: #242119;
+        --panel-light: #322d22;
+        --seam: #0c0b08;
+        --amber: #ffb000;
+        --amber-dim: #8a6300;
+        --amber-glow: rgba(255, 176, 0, 0.35);
+        --green: #3ddc73;
+        --green-dim: #1c6b3a;
+        --red: #ff3b30;
+        --red-deep: #5c0f0f;
+        --text-main: #ece4cf;
+        --text-dim: #9c937c;
+        --font-display: "Bebas Neue", sans-serif;
+        --font-mono: "JetBrains Mono", monospace;
+        --font-cap: "IBM Plex Mono", monospace;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: var(--font-mono);
+        background:
+          radial-gradient(ellipse at 20% -10%, #2a2415 0%, transparent 55%),
+          radial-gradient(ellipse at 80% 110%, #1c130f 0%, transparent 55%),
+          #0b0a08;
+        color: var(--text-main);
+        padding: 22px 14px 60px;
+        min-height: 100vh;
+      }
+
+      a {
+        color: var(--amber);
+      }
+
+      .rig {
+        max-width: 1180px;
+        margin: 0 auto;
+        background: linear-gradient(
+          180deg,
+          var(--panel-mid),
+          var(--panel-dark) 60%
+        );
+        border-radius: 18px;
+        padding: 26px 26px 22px;
+        border: 1px solid #3a3527;
+        box-shadow:
+          0 30px 80px rgba(0, 0, 0, 0.6),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+          inset 0 2px 0 rgba(255, 255, 255, 0.04);
+        position: relative;
+      }
+      .rig::before {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        border-radius: 12px;
+        pointer-events: none;
+        background-image: radial-gradient(
+          circle,
+          var(--seam) 1.4px,
+          transparent 1.6px
+        );
+        background-size: 26px 26px;
+        background-position: 0 0;
+        opacity: 0.35;
+        mask-image: linear-gradient(#000, #000), linear-gradient(#000, #000);
+        -webkit-mask-image:
+          linear-gradient(
+            to right,
+            black 0,
+            black 6px,
+            transparent 6px,
+            transparent calc(100% - 6px),
+            black calc(100% - 6px),
+            black 100%
+          ),
+          linear-gradient(
+            to bottom,
+            black 0,
+            black 6px,
+            transparent 6px,
+            transparent calc(100% - 6px),
+            black calc(100% - 6px),
+            black 100%
+          );
+        -webkit-mask-composite: source-in;
+        display: none;
+      }
+
+      header.topbar {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid #3a3527;
+        padding-bottom: 16px;
+        margin-bottom: 20px;
+      }
+      .title-block h1 {
+        font-family: var(--font-display);
+        font-size: clamp(28px, 4.2vw, 44px);
+        letter-spacing: 2px;
+        margin: 0;
+        color: var(--amber);
+        text-shadow: 0 0 18px var(--amber-glow);
+        line-height: 1;
+      }
+      .title-block .subtitle {
+        font-family: var(--font-cap);
+        font-size: 11px;
+        letter-spacing: 3px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-top: 6px;
+      }
+      .status-chip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #0d0c09;
+        border: 1px solid #3a3527;
+        border-radius: 999px;
+        padding: 8px 16px 8px 10px;
+      }
+      .status-chip .lamp {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 10px var(--green);
+        transition:
+          background 0.3s,
+          box-shadow 0.3s;
+      }
+      .status-chip.warning .lamp {
+        background: var(--amber);
+        box-shadow: 0 0 10px var(--amber);
+      }
+      .status-chip.danger .lamp {
+        background: var(--red);
+        box-shadow: 0 0 12px var(--red);
+        animation: lampblink 0.5s infinite;
+      }
+      .status-chip.fatal .lamp {
+        background: #fff;
+        box-shadow: 0 0 16px var(--red);
+        animation: lampblink 0.15s infinite;
+      }
+      .status-chip .label {
+        font-family: var(--font-cap);
+        font-size: 12px;
+        letter-spacing: 2px;
+        color: var(--text-main);
+      }
+      @keyframes lampblink {
+        0%,
+        100% {
+          opacity: 1;
         }
-        .reactor-container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: #333;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        50% {
+          opacity: 0.25;
         }
-        h1 {
-            color: #fff;
-            text-align: center;
-            margin-bottom: 20px;
+      }
+
+      .beacon {
+        position: absolute;
+        top: 14px;
+        right: 18px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: none;
+      }
+      body.state-danger .beacon,
+      body.state-fatal .beacon {
+        display: block;
+        background: radial-gradient(
+          circle,
+          #fff,
+          var(--red) 55%,
+          transparent 75%
+        );
+        box-shadow: 0 0 30px 10px rgba(255, 59, 48, 0.6);
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0);
         }
-        .reactor-core {
-            display: grid;
-            grid-template-columns: repeat(20, 1fr);
-            gap: 2px;
-            background-color: #444;
-            padding: 10px;
-            border-radius: 5px;
+        100% {
+          transform: rotate(360deg);
         }
-        .control-rod {
-            aspect-ratio: 1;
-            background-color: #555;
-            border: 1px solid #777;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 8px;
-            cursor: pointer;
-            transition: background-color 0.3s;
+      }
+
+      .gauges {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      .gauge-panel {
+        background: var(--panel-dark);
+        border: 1px solid #3a3527;
+        border-radius: 10px;
+        padding: 14px 14px 12px;
+        box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.6);
+      }
+      .gauge-panel .gp-label {
+        font-family: var(--font-cap);
+        font-size: 10px;
+        letter-spacing: 2px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        text-align: center;
+        margin-bottom: 6px;
+      }
+      .gauge-wrap {
+        position: relative;
+        width: 180px;
+        height: 96px;
+        margin: 0 auto;
+      }
+      .gauge-face {
+        position: absolute;
+        inset: 0;
+        border-top-left-radius: 180px;
+        border-top-right-radius: 180px;
+        overflow: hidden;
+        background: conic-gradient(
+          from 270deg at 50% 100%,
+          var(--green) 0deg 100deg,
+          var(--amber) 100deg 145deg,
+          var(--red) 145deg 180deg
+        );
+        box-shadow:
+          inset 0 0 0 1px #000,
+          inset 0 -2px 10px rgba(0, 0, 0, 0.5);
+      }
+      .gauge-face::after {
+        content: "";
+        position: absolute;
+        inset: 10px 10px 0 10px;
+        border-top-left-radius: 170px;
+        border-top-right-radius: 170px;
+        background: var(--panel-dark);
+      }
+      .needle {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        width: 3px;
+        height: 78px;
+        background: linear-gradient(180deg, var(--amber), #fff2 90%);
+        transform-origin: bottom center;
+        margin-left: -1.5px;
+        transform: translateX(0) rotate(-90deg);
+        transition: transform 0.25s ease-out;
+        box-shadow: 0 0 8px var(--amber-glow);
+        z-index: 2;
+      }
+      .needle-hub {
+        position: absolute;
+        left: 50%;
+        bottom: -6px;
+        width: 12px;
+        height: 12px;
+        margin-left: -6px;
+        border-radius: 50%;
+        background: radial-gradient(circle, #eee, #666);
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+        z-index: 3;
+      }
+      .gauge-readout {
+        text-align: center;
+        margin-top: 8px;
+        font-family: var(--font-mono);
+        font-weight: 700;
+        font-size: 22px;
+        color: var(--amber);
+        text-shadow: 0 0 10px var(--amber-glow);
+        background: #000;
+        border-radius: 6px;
+        padding: 4px 0;
+        border: 1px solid #3a3527;
+      }
+      .gauge-readout .unit {
+        font-size: 11px;
+        color: var(--text-dim);
+        font-weight: 400;
+        margin-left: 4px;
+      }
+
+      .core-panel {
+        background: var(--panel-dark);
+        border: 1px solid #3a3527;
+        border-radius: 10px;
+        padding: 18px 14px;
+        margin-bottom: 18px;
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+      }
+      .core-panel .cp-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        font-family: var(--font-cap);
+        font-size: 10px;
+        letter-spacing: 2px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+      }
+      .legend {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .legend i {
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+        display: inline-block;
+      }
+      .legend .i-idle {
+        background: #4a4536;
+      }
+      .legend .i-active {
+        background: var(--amber);
+      }
+      .legend .i-mod {
+        background: var(--green);
+      }
+
+      .reactor-core {
+        display: grid;
+        grid-template-columns: repeat(29, 1fr);
+        gap: 2px;
+        background: #15130d;
+        padding: 14px;
+        border-radius: 50%;
+        border: 8px solid #2a261c;
+        box-shadow: 
+          inset 0 0 40px rgba(0, 0, 0, 0.9),
+          inset 0 0 10px #000,
+          0 10px 30px rgba(0, 0, 0, 0.3);
+        aspect-ratio: 1;
+        margin: 0 auto;
+        max-width: 520px; 
+      }
+      .rod {
+        aspect-ratio: 1;
+        background: #4a4536;
+        border-radius: 2px;
+        cursor: pointer;
+        transition:
+          transform 0.12s ease,
+          box-shadow 0.2s;
+      }
+      .rod.empty {
+        background: transparent !important;
+        box-shadow: none !important;
+        cursor: default;
+        pointer-events: none;
+      }
+      .rod:hover {
+        transform: scale(1.35);
+        z-index: 5;
+        box-shadow: 0 0 6px #fff5;
+      }
+      .rod.active {
+        background: var(--amber);
+        box-shadow: 0 0 5px var(--amber-glow);
+      }
+      .rod.moderator {
+        background: var(--green);
+        cursor: not-allowed;
+      }
+      .rod.moderator:hover {
+        transform: none;
+        box-shadow: 0 0 5px var(--green);
+      }
+      .rod.hot {
+        filter: brightness(1.3) saturate(1.4);
+      }
+
+      .control-deck {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto 1fr;
+        gap: 12px;
+        align-items: stretch;
+        margin-bottom: 18px;
+      }
+      button.deck-btn {
+        font-family: var(--font-cap);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-size: 12.5px;
+        color: var(--text-main);
+        background: linear-gradient(
+          180deg,
+          var(--panel-light),
+          var(--panel-mid)
+        );
+        border: 1px solid #4a4536;
+        border-radius: 8px;
+        padding: 14px 10px;
+        cursor: pointer;
+        box-shadow:
+          0 3px 0 #0c0b08,
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        transition:
+          transform 0.08s,
+          box-shadow 0.08s,
+          background 0.15s;
+      }
+      button.deck-btn:hover {
+        background: linear-gradient(180deg, #3a3527, var(--panel-mid));
+        color: #fff;
+      }
+      button.deck-btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 0 0 #0c0b08;
+      }
+      button.deck-btn:focus-visible {
+        outline: 2px solid var(--amber);
+        outline-offset: 2px;
+      }
+
+      #scram {
+        background: radial-gradient(
+          circle at 35% 30%,
+          #d33,
+          var(--red-deep) 70%
+        );
+        border: 2px solid #ff6b60;
+        color: #fff;
+        font-weight: 700;
+        border-radius: 50%;
+        width: 96px;
+        height: 96px;
+        padding: 0;
+        box-shadow:
+          0 5px 0 #300606,
+          0 0 22px rgba(255, 59, 48, 0.35),
+          inset 0 2px 6px rgba(255, 255, 255, 0.25);
+        justify-self: center;
+      }
+      #scram:hover {
+        box-shadow:
+          0 5px 0 #300606,
+          0 0 32px rgba(255, 59, 48, 0.6),
+          inset 0 2px 6px rgba(255, 255, 255, 0.3);
+      }
+      #scram:active {
+        transform: translateY(4px);
+        box-shadow:
+          0 1px 0 #300606,
+          0 0 22px rgba(255, 59, 48, 0.5);
+      }
+      #scram:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .switch-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        justify-content: center;
+      }
+      .switch {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        background: var(--panel-dark);
+        border: 1px solid #3a3527;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-family: var(--font-cap);
+        font-size: 10.5px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        cursor: pointer;
+        user-select: none;
+      }
+      .switch .track {
+        width: 34px;
+        height: 16px;
+        border-radius: 999px;
+        background: #3a3527;
+        position: relative;
+        flex-shrink: 0;
+        transition: background 0.2s;
+      }
+      .switch .track::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #8a8370;
+        transition:
+          left 0.2s,
+          background 0.2s;
+      }
+      .switch.on .track {
+        background: var(--green-dim);
+      }
+      .switch.on .track::after {
+        left: 18px;
+        background: var(--green);
+      }
+      .switch.on {
+        color: var(--text-main);
+      }
+
+      .telemetry {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      .chart-card {
+        background: #050504;
+        border: 1px solid #3a3527;
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .chart-card .ct {
+        font-family: var(--font-cap);
+        font-size: 10px;
+        letter-spacing: 2px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 6px;
+        text-align: center;
+      }
+      .chart-card .ch {
+        height: 140px;
+      }
+
+      .log-console {
+        background: #000;
+        border: 1px solid #3a3527;
+        border-radius: 10px;
+        padding: 10px 14px;
+        height: 150px;
+        overflow-y: auto;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        line-height: 1.65;
+      }
+      .log-console .lt {
+        font-family: var(--font-cap);
+        font-size: 10px;
+        letter-spacing: 2px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .log-line {
+        color: #7fdc9a;
+      }
+      .log-line.warn {
+        color: var(--amber);
+      }
+      .log-line.danger {
+        color: var(--red);
+      }
+      .log-line .ts {
+        color: var(--text-dim);
+        margin-right: 8px;
+      }
+
+      footer.hint {
+        text-align: center;
+        margin-top: 16px;
+        font-family: var(--font-cap);
+        font-size: 10.5px;
+        letter-spacing: 1px;
+        color: var(--text-dim);
+      }
+      footer.hint kbd {
+        background: #26241f;
+        border: 1px solid #4a4536;
+        border-radius: 4px;
+        padding: 1px 6px;
+        color: var(--amber);
+      }
+
+      #toastWrap {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        z-index: 200;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .toast {
+        background: linear-gradient(
+          180deg,
+          var(--panel-light),
+          var(--panel-dark)
+        );
+        border: 1px solid var(--amber);
+        border-radius: 8px;
+        padding: 12px 16px;
+        max-width: 280px;
+        box-shadow:
+          0 10px 30px rgba(0, 0, 0, 0.5),
+          0 0 16px var(--amber-glow);
+        animation: toastin 0.25s ease-out;
+      }
+      .toast .tt {
+        font-family: var(--font-cap);
+        font-size: 10px;
+        letter-spacing: 2px;
+        color: var(--amber);
+        text-transform: uppercase;
+      }
+      .toast .td {
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        margin-top: 4px;
+        color: var(--text-main);
+      }
+      @keyframes toastin {
+        from {
+          opacity: 0;
+          transform: translateX(20px);
         }
-        .control-rod.active {
-            background-color: #f00;
-            box-shadow: 0 0 10px #f00;
+        to {
+          opacity: 1;
+          transform: translateX(0);
         }
-        .control-rod.moderator {
-            background-color: #0a0;
+      }
+
+      #meltdownOverlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 500;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 14px;
+        background: radial-gradient(
+          circle at 50% 40%,
+          rgba(120, 0, 0, 0.55),
+          rgba(0, 0, 0, 0.92)
+        );
+        backdrop-filter: blur(3px);
+        text-align: center;
+        padding: 20px;
+      }
+      #meltdownOverlay h2 {
+        font-family: var(--font-display);
+        font-size: clamp(46px, 9vw, 90px);
+        color: #fff;
+        text-shadow: 0 0 40px var(--red);
+        letter-spacing: 4px;
+        margin: 0;
+        animation: blink 0.4s infinite;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
         }
-        .control-panel {
-            margin-top: 20px;
-            background-color: #444;
-            padding: 15px;
-            border-radius: 5px;
-            color: white;
+        50% {
+          opacity: 0.35;
         }
-        .status-display {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
+      }
+      #meltdownOverlay .stats {
+        font-family: var(--font-mono);
+        color: #ffd;
+        font-size: 14px;
+        line-height: 1.9;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--red);
+        border-radius: 8px;
+        padding: 14px 22px;
+      }
+      #meltdownOverlay button {
+        margin-top: 6px;
+        font-family: var(--font-cap);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        background: var(--red-deep);
+        color: #fff;
+        border: 1px solid var(--red);
+        border-radius: 8px;
+        padding: 12px 26px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .radiation-particle {
+        position: fixed;
+        bottom: -30px;
+        font-size: 22px;
+        color: var(--amber);
+        pointer-events: none;
+        z-index: 499;
+        animation: rise linear forwards;
+        text-shadow: 0 0 10px var(--amber);
+      }
+      @keyframes rise {
+        from {
+          transform: translateY(0) rotate(0deg);
+          opacity: 1;
         }
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 10px;
+        to {
+          transform: translateY(-100vh) rotate(360deg);
+          opacity: 0;
         }
-        button {
-            padding: 8px 15px;
-            background-color: #666;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      }
+
+      @media (max-width: 880px) {
+        .gauges {
+          grid-template-columns: 1fr;
         }
-        button:hover {
-            background-color: #777;
+        .telemetry {
+          grid-template-columns: 1fr;
         }
-        .graph-container {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
+        .control-deck {
+          grid-template-columns: 1fr 1fr;
+          grid-auto-rows: auto;
         }
-        .graph-column {
-            flex: 1;
+        #scram {
+          grid-column: span 2;
+          justify-self: center;
         }
-        .graph-title {
-            color: white;
-            text-align: center;
-            margin-bottom: 5px;
-            font-size: 12px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.001s !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001s !important;
         }
-        .graph {
-            height: 150px;
-            background-color: #222;
-            position: relative;
-            overflow: hidden;
-        }
-        .warning {
-            color: #f80;
-            font-weight: bold;
-        }
-        .danger {
-            color: #f00;
-            font-weight: bold;
-            animation: blink 0.5s infinite;
-        }
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        canvas {
-            width: 100%;
-            height: 100%;
-        }
+      }
     </style>
-</head>
-<body>
-    <div class="reactor-container">
-        <h1>RBMK Reactor Simulation</h1>
-        
-        <div class="reactor-core" id="reactorCore"></div>
-        
-        <div class="control-panel">
-            <div class="status-display">
-                <div>Power Output: <span id="powerOutput">0</span> MW</div>
-                <div>Reactivity: <span id="reactivity">0</span> %</div>
-                <div>Temperature: <span id="temperature">300</span> °C <span id="tempStatus"></span></div>
-            </div>
-            
-            <div class="controls">
-                <button id="insertRods">Insert 10 Rods</button>
-                <button id="withdrawRods">Withdraw 10 Rods</button>
-                <button id="scram">SCRAM (Emergency Shutdown)</button>
-                <button id="resetBtn">Reset</button>
-                <button id="muteBtn">Mute Alarm</button>
-            </div>
-            
-            <div class="graph-container">
-                <div class="graph-column">
-                    <div class="graph-title">Power Output (MW)</div>
-                    <div class="graph">
-                        <canvas id="powerChart"></canvas>
-                    </div>
-                </div>
-                <div class="graph-column">
-                    <div class="graph-title">Core Temperature (°C)</div>
-                    <div class="graph">
-                        <canvas id="tempChart"></canvas>
-                    </div>
-                </div>
-            </div>
+  </head>
+  <body>
+    <div class="beacon" aria-hidden="true"></div>
+    <div id="toastWrap" aria-live="off"></div>
+    <div id="srLive" class="sr-only" aria-live="polite"></div>
+
+    <div class="rig">
+      <header class="topbar">
+        <div class="title-block">
+          <h1>RBMK-1000 REACTOR CONTROL</h1>
+          <div class="subtitle">
+            Unit 4 · AZ-5 Emergency Protocol Simulator
+          </div>
         </div>
+        <div class="status-chip" id="statusChip">
+          <span class="lamp"></span>
+          <span class="label" id="statusLabel">NOMINAL</span>
+        </div>
+      </header>
+
+      <section class="gauges">
+        <div class="gauge-panel">
+          <div class="gp-label">Thermal Power</div>
+          <div class="gauge-wrap">
+            <div class="gauge-face"></div>
+            <div class="needle" id="needlePower"></div>
+            <div class="needle-hub"></div>
+          </div>
+          <div class="gauge-readout">
+            <span id="powerOutput">0</span><span class="unit">MW</span>
+          </div>
+        </div>
+
+        <div class="gauge-panel">
+          <div class="gp-label">Reactivity</div>
+          <div class="gauge-wrap">
+            <div class="gauge-face"></div>
+            <div class="needle" id="needleReactivity"></div>
+            <div class="needle-hub"></div>
+          </div>
+          <div class="gauge-readout">
+            <span id="reactivity">0</span><span class="unit">%</span>
+          </div>
+        </div>
+
+        <div class="gauge-panel">
+          <div class="gp-label">Core Temperature</div>
+          <div class="gauge-wrap">
+            <div class="gauge-face"></div>
+            <div class="needle" id="needleTemp"></div>
+            <div class="needle-hub"></div>
+          </div>
+          <div class="gauge-readout">
+            <span id="temperature">300</span><span class="unit">°C</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="core-panel">
+        <div class="cp-head">
+          <span id="coreMapLabel">Core Channel Map</span>
+          <span class="legend">
+            <span><i class="i-idle"></i>Withdrawn</span>
+            <span><i class="i-active"></i>Inserted</span>
+            <span><i class="i-mod"></i>Moderator</span>
+          </span>
+        </div>
+        <div class="reactor-core" id="reactorCore"></div>
+      </section>
+
+      <section class="control-deck">
+        <button class="deck-btn" id="insertRods">▼ Insert 10 Rods</button>
+        <button class="deck-btn" id="withdrawRods">▲ Withdraw 10 Rods</button>
+        <div class="switch-row">
+          <div class="switch on" id="muteSwitch">
+            <span>Alarm Audio</span><span class="track"></span>
+          </div>
+          <div class="switch on" id="voiceSwitch">
+            <span>Voice Alerts</span><span class="track"></span>
+          </div>
+        </div>
+        <button id="scram" title="Emergency SCRAM">AZ-5<br />SCRAM</button>
+        <div class="switch-row">
+          <div class="switch" id="autoSwitch">
+            <span>Autopilot</span><span class="track"></span>
+          </div>
+          <button class="deck-btn" id="resetBtn" style="padding: 9px 10px">
+            ⟲ Reset System
+          </button>
+        </div>
+      </section>
+
+      <section class="telemetry">
+        <div class="chart-card">
+          <div class="ct">Power Output (MW)</div>
+          <div class="ch"><canvas id="powerChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="ct">Core Temperature (°C)</div>
+          <div class="ch"><canvas id="tempChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="ct">Xenon-135 Concentration</div>
+          <div class="ch"><canvas id="xenonChart"></canvas></div>
+        </div>
+      </section>
+
+      <section class="log-console" id="logConsole">
+        <div class="lt">Control Room Log</div>
+      </section>
+
+      <footer class="hint">
+        <kbd>&uarr;</kbd> withdraw &nbsp; <kbd>&darr;</kbd> insert &nbsp;
+        <kbd>A</kbd> SCRAM &nbsp; <kbd>R</kbd> reset &nbsp; <kbd>M</kbd> mute
+      </footer>
     </div>
 
-    <audio id="warningAudio" src="warning.mp3" loop></audio>
+    <div id="meltdownOverlay" role="alertdialog" aria-label="Core destroyed">
+      <h2>CORE DESTROYED</h2>
+      <div class="stats" id="meltdownStats"></div>
+      <button id="restartBtn">Restart Simulation</button>
+    </div>
+
+    <audio id="alarmAudio" loop preload="auto" src="warning.mp3"></audio>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+      (function () {
+        "use strict";
+
+        const GRID_SIZE = 29;
+        const CENTER = Math.floor(GRID_SIZE / 2);
+        const RADIUS = 14.2; 
+        const MODERATOR_STRIDE = 23;
+
+        let TOTAL_RODS = 0;
+        const validChannels = [];
+        
+        for (let y = 0; y < GRID_SIZE; y++) {
+          for (let x = 0; x < GRID_SIZE; x++) {
+            const dx = x - CENTER;
+            const dy = y - CENTER;
+            if (Math.sqrt(dx * dx + dy * dy) <= RADIUS) {
+              validChannels.push({ x, y });
+            }
+          }
+        }
+        TOTAL_RODS = validChannels.length;
+        
+        document.getElementById("coreMapLabel").textContent = `Upper Biological Shield — ${TOTAL_RODS} Channels`;
+
+        const moderatorSet = new Set();
+        for (let i = 0; i < TOTAL_RODS; i++) {
+          if (i % MODERATOR_STRIDE === 0) moderatorSet.add(i);
+        }
+        
+        const controlRodTotal = TOTAL_RODS - moderatorSet.size;
+        const moderatorBonus = moderatorSet.size * 0.05;
+        const HISTLEN = 100;
+
         const reactor = {
-            power: 0,
-            reactivity: 0,
-            temperature: 300,
-            rodsInserted: 0,
-            totalRods: 594,
-            isScrammed: false,
-            powerHistory: Array(100).fill(0),
-            tempHistory: Array(100).fill(300),
-            voidCoefficient: 0.2,
-            xenon: 0
+          power: 0,
+          reactivity: 0,
+          temperature: 300,
+          rodsInserted: controlRodTotal,
+          isScrammed: false,
+          scramTimer: 0,
+          isDestroyed: false,
+          powerHistory: Array(HISTLEN).fill(0),
+          tempHistory: Array(HISTLEN).fill(300),
+          xenonHistory: Array(HISTLEN).fill(0),
+          voidCoefficient: 0.35,
+          xenon: 0,
+          peakPower: 0,
+          peakTemp: 300,
+          startTime: Date.now(),
+          scramCount: 0,
+          reachedDanger: false,
+          autopilotUsed: false,
+          timeUnder400: 0,
         };
 
-        const reactorCore = document.getElementById('reactorCore');
-        const powerOutput = document.getElementById('powerOutput');
-        const reactivityDisplay = document.getElementById('reactivity');
-        const temperatureDisplay = document.getElementById('temperature');
-        const tempStatus = document.getElementById('tempStatus');
-        const insertRodsBtn = document.getElementById('insertRods');
-        const withdrawRodsBtn = document.getElementById('withdrawRods');
-        const scramBtn = document.getElementById('scram');
-        const resetBtn = document.getElementById('resetBtn');
-        const muteBtn = document.getElementById('muteBtn');
-        const warningAudio = document.getElementById('warningAudio');
-        let isMuted = false;
+        let autopilot = false, muted = false, voiceEnabled = true;
+        let statusLevel = "NOMINAL";
+        let autoTickCounter = 0;
 
-        const powerCtx = document.getElementById('powerChart').getContext('2d');
-        const tempCtx = document.getElementById('tempChart').getContext('2d');
+        const el = {
+          core: document.getElementById("reactorCore"),
+          power: document.getElementById("powerOutput"),
+          reactivity: document.getElementById("reactivity"),
+          temperature: document.getElementById("temperature"),
+          statusChip: document.getElementById("statusChip"),
+          statusLabel: document.getElementById("statusLabel"),
+          needlePower: document.getElementById("needlePower"),
+          needleReactivity: document.getElementById("needleReactivity"),
+          needleTemp: document.getElementById("needleTemp"),
+          overlay: document.getElementById("meltdownOverlay"),
+          meltdownStats: document.getElementById("meltdownStats"),
+          log: document.getElementById("logConsole"),
+          srLive: document.getElementById("srLive"),
+          toastWrap: document.getElementById("toastWrap"),
+          alarmAudio: document.getElementById("alarmAudio"),
+          scramBtn: document.getElementById("scram"),
+        };
 
-        const powerChart = new Chart(powerCtx, {
-            type: 'line',
-            data: {
-                labels: Array(100).fill(''),
-                datasets: [{
-                    label: 'Power (MW)',
-                    data: reactor.powerHistory,
-                    borderColor: '#0f0',
-                    backgroundColor: 'rgba(0, 255, 0, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { display: false },
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                    }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
-
-        const tempChart = new Chart(tempCtx, {
-            type: 'line',
-            data: {
-                labels: Array(100).fill(''),
-                datasets: [{
-                    label: 'Temperature (°C)',
-                    data: reactor.tempHistory,
-                    borderColor: '#f80',
-                    backgroundColor: 'rgba(255, 100, 0, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { display: false },
-                    y: { grid: { color: 'rgba(255, 255, 255, 0.1)' } }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
-
-        function initReactor() {
-            reactorCore.innerHTML = '';
-            for (let i = 0; i < reactor.totalRods; i++) {
-                const rod = document.createElement('div');
-                rod.className = 'control-rod active';
-                rod.textContent = i;
-                rod.dataset.index = i;
-                if (Math.random() < 0.15) rod.classList.add('moderator');
-                rod.addEventListener('click', toggleRod);
-                reactorCore.appendChild(rod);
-            }
-            updateReactorState();
-            updateDisplay();
+        function ts() {
+          const d = new Date();
+          return d.toTimeString().slice(0, 8);
+        }
+        function log(msg, level) {
+          const line = document.createElement("div");
+          line.className = "log-line" + (level ? " " + level : "");
+          line.innerHTML = `<span class="ts">[${ts()}]</span>${msg}`;
+          el.log.appendChild(line);
+          el.log.scrollTop = el.log.scrollHeight;
+          const lines = el.log.querySelectorAll(".log-line");
+          if (lines.length > 200) lines[0].remove();
         }
 
-        function toggleRod(e) {
-            if (reactor.isScrammed) return;
-            const rod = e.target;
-            rod.classList.toggle('active');
-            updateReactorState();
+        function announce(msg) {
+          el.srLive.textContent = msg;
+        }
+
+        let actx = null;
+        function ctx() {
+          if (!actx) {
+            try {
+              actx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {}
+          }
+          return actx;
+        }
+        function beep(freq, dur, type, vol) {
+          if (muted) return;
+          const c = ctx();
+          if (!c) return;
+          const osc = c.createOscillator(),
+            gain = c.createGain();
+          osc.type = type || "square";
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(
+            vol !== undefined ? vol : 0.12,
+            c.currentTime,
+          );
+          gain.gain.exponentialRampToValueAtTime(
+            0.001,
+            c.currentTime + (dur || 0.08),
+          );
+          osc.connect(gain).connect(c.destination);
+          osc.start();
+          osc.stop(c.currentTime + (dur || 0.08));
+        }
+        function clickSound() {
+          beep(620, 0.03, "square", 0.07);
+        }
+        function toggleSound() {
+          beep(880, 0.05, "sine", 0.08);
+        }
+        function thunkSound() {
+          beep(90, 0.35, "sawtooth", 0.22);
+          setTimeout(() => beep(55, 0.4, "sine", 0.18), 90);
+        }
+        function dangerBlip() {
+          beep(1200, 0.06, "square", 0.06);
+        }
+
+        function speak(text) {
+          if (!voiceEnabled || !("speechSynthesis" in window)) return;
+          try {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 0.95;
+            u.pitch = 0.75;
+            u.volume = 1;
+            window.speechSynthesis.speak(u);
+          } catch (e) {}
+        }
+
+        function updateAlarm() {
+          const dangerLevel =
+            statusLevel === "DANGER" || statusLevel === "FATAL";
+          if (dangerLevel && !muted) {
+            el.alarmAudio.volume = statusLevel === "FATAL" ? 1 : 0.55;
+            if (el.alarmAudio.paused) {
+              el.alarmAudio.play().catch(() => {});
+            }
+          } else {
+            if (!el.alarmAudio.paused) {
+              el.alarmAudio.pause();
+            }
+          }
+        }
+
+        function toast(title, desc) {
+          const t = document.createElement("div");
+          t.className = "toast";
+          t.innerHTML = `<div class="tt">${title}</div><div class="td">${desc}</div>`;
+          el.toastWrap.appendChild(t);
+          setTimeout(() => {
+            t.style.transition = "opacity .4s";
+            t.style.opacity = "0";
+            setTimeout(() => t.remove(), 400);
+          }, 4200);
+        }
+
+        const achievements = [
+          {
+            id: "first_scram",
+            name: "AZ-5 Engaged",
+            desc: "Triggered the emergency SCRAM for the first time.",
+            cond: (s) => s.scramCount >= 1,
+          },
+          {
+            id: "danger_zone",
+            name: "Into the Red",
+            desc: "Reactor reached DANGER status and lived to tell about it.",
+            cond: (s) => s.reachedDanger && !s.isDestroyed,
+          },
+          {
+            id: "autopilot_on",
+            name: "Hands Off the Controls",
+            desc: "Enabled Autopilot mode.",
+            cond: (s) => s.autopilotUsed,
+          },
+          {
+            id: "steady_hand",
+            name: "Steady Hand",
+            desc: "Held the core under 400°C for a full minute.",
+            cond: (s) => s.timeUnder400 >= 60,
+          },
+          {
+            id: "meltdown",
+            name: "Core Destroyed",
+            desc: "Lost containment. It happens to the best operators.",
+            cond: (s) => s.isDestroyed,
+          },
+        ];
+        const unlocked = new Set();
+        function checkAchievements() {
+          achievements.forEach((a) => {
+            if (!unlocked.has(a.id) && a.cond(reactor)) {
+              unlocked.add(a.id);
+              toast("Achievement — " + a.name, a.desc);
+              log(`ACHIEVEMENT UNLOCKED: ${a.name}`, "warn");
+            }
+          });
+        }
+
+        function initCore() {
+          el.core.innerHTML = "";
+          const frag = document.createDocumentFragment();
+          let channelIndex = 0;
+
+          for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+              const dx = x - CENTER;
+              const dy = y - CENTER;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const rod = document.createElement("div");
+
+              if (dist <= RADIUS) {
+                if (moderatorSet.has(channelIndex)) {
+                  rod.className = "rod moderator";
+                  rod.title = "Moderator channel (fixed)";
+                } else {
+                  rod.className = "rod active";
+                  rod.title = "Control rod — click to toggle";
+                  rod.addEventListener("click", () => {
+                    if (reactor.isScrammed || reactor.isDestroyed) return;
+                    rod.classList.toggle("active");
+                    clickSound();
+                  });
+                }
+                channelIndex++;
+              } else {
+                rod.className = "rod empty";
+              }
+              frag.appendChild(rod);
+            }
+          }
+          el.core.appendChild(frag);
+        }
+
+        function modifyRandomRods(count, insert) {
+          if (reactor.isScrammed || reactor.isDestroyed) return;
+          const selector = insert
+            ? ".rod.active:not(.moderator)"
+            : ".rod:not(.active):not(.moderator):not(.empty)";
+          const rods = Array.from(el.core.querySelectorAll(selector))
+            .sort(() => 0.5 - Math.random())
+            .slice(0, count);
+          rods.forEach((r) =>
+            insert ? r.classList.remove("active") : r.classList.add("active"),
+          );
+        }
+
+        function setNeedle(elNeedle, value, min, max) {
+          const frac = Math.min(1, Math.max(0, (value - min) / (max - min)));
+          const angle = -90 + frac * 180;
+          elNeedle.style.transform = `rotate(${angle}deg)`;
+        }
+
+        Chart.defaults.color = "#9c937c";
+        Chart.defaults.font.family = "'JetBrains Mono', monospace";
+        Chart.defaults.font.size = 10;
+
+        function makeChart(ctxEl, color, data) {
+          return new Chart(ctxEl, {
+            type: "line",
+            data: {
+              labels: Array(HISTLEN).fill(""),
+              datasets: [
+                {
+                  data,
+                  borderColor: color,
+                  backgroundColor: color + "22",
+                  borderWidth: 2,
+                  pointRadius: 0,
+                  fill: true,
+                  tension: 0.25,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: false,
+              scales: {
+                x: { display: false },
+                y: { beginAtZero: true, grid: { color: "#221f18" } },
+              },
+              plugins: { legend: { display: false } },
+            },
+          });
+        }
+        const powerChart = makeChart(
+          document.getElementById("powerChart").getContext("2d"),
+          "#ffb000",
+          reactor.powerHistory,
+        );
+        const tempChart = makeChart(
+          document.getElementById("tempChart").getContext("2d"),
+          "#ff3b30",
+          reactor.tempHistory,
+        );
+        const xenonChart = makeChart(
+          document.getElementById("xenonChart").getContext("2d"),
+          "#3ddc73",
+          reactor.xenonHistory,
+        );
+
+        let particleInterval = null;
+        function startParticles() {
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+            return;
+          particleInterval = setInterval(() => {
+            const p = document.createElement("div");
+            p.className = "radiation-particle";
+            p.textContent = "☢";
+            p.style.left = Math.random() * 100 + "vw";
+            p.style.animationDuration = 3 + Math.random() * 3 + "s";
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 6500);
+          }, 220);
+        }
+
+        function setStatus(level) {
+          if (level === statusLevel) return;
+          statusLevel = level;
+          document.body.classList.remove(
+            "state-warning",
+            "state-danger",
+            "state-fatal",
+          );
+          el.statusChip.classList.remove("warning", "danger", "fatal");
+          if (level === "WARNING") {
+            document.body.classList.add("state-warning");
+            el.statusChip.classList.add("warning");
+          }
+          if (level === "DANGER") {
+            document.body.classList.add("state-danger");
+            el.statusChip.classList.add("danger");
+            reactor.reachedDanger = true;
+          }
+          if (level === "FATAL") {
+            document.body.classList.add("state-fatal");
+            el.statusChip.classList.add("fatal");
+          }
+          el.statusLabel.textContent = level;
+          announce("Reactor status: " + level);
+
+          if (level === "WARNING") {
+            log("Core temperature rising above nominal band.", "warn");
+            speak("Warning. Core temperature rising.");
+            dangerBlip();
+          }
+          if (level === "DANGER") {
+            log(
+              "CORE TEMPERATURE CRITICAL. Operator action required.",
+              "danger",
+            );
+            speak("Warning. Core temperature critical.");
+            dangerBlip();
+          }
+          if (level === "FATAL") {
+            log("CORE TEMPERATURE FATAL. Meltdown imminent.", "danger");
+            speak("Meltdown imminent. Evacuate the control room.");
+          }
+          if (level === "NOMINAL") {
+            log("Core temperature back within nominal range.");
+          }
+          updateAlarm();
         }
 
         function updateReactorState() {
-            const activeRods = document.querySelectorAll('.control-rod.active').length;
-            reactor.rodsInserted = activeRods;
+          if (reactor.isDestroyed) return;
 
-            const rodEffectiveness = 1 - (reactor.rodsInserted / reactor.totalRods);
-            const voidEffect = reactor.voidCoefficient * (reactor.temperature - 300) / 100;
-            const xenonEffect = -reactor.xenon / 100;
+          const activeRods = el.core.querySelectorAll(
+            ".rod.active:not(.moderator)"
+          ).length;
+          reactor.rodsInserted = activeRods;
 
-            reactor.reactivity = Math.max(0, rodEffectiveness * 100 + voidEffect + xenonEffect);
-            const targetPower = reactor.reactivity * 32;
-            reactor.power += (targetPower - reactor.power) * 0.01;
+          let rodEffectiveness = 1 - reactor.rodsInserted / controlRodTotal;
+          let graphiteSpike = 0;
 
-            const heatProduction = reactor.power / 10;
-            const cooling = (reactor.temperature - 300) / 30;
-            reactor.temperature += (heatProduction - cooling) * 0.1;
+          if (reactor.isScrammed) {
+            reactor.scramTimer++;
+            if (reactor.scramTimer < 12) {
+              graphiteSpike = (12 - reactor.scramTimer) * 15;
+            }
+          }
 
-            reactor.xenon += (reactor.power / 100 - reactor.xenon / 1000) * 0.05;
+          const voidEffect =
+            reactor.voidCoefficient *
+            Math.max(0, (reactor.temperature - 300) / 50);
+          const xenonEffect = -reactor.xenon / 100;
 
-            updateDisplay();
+          reactor.reactivity = Math.max(
+            0,
+            rodEffectiveness * 120 +
+              moderatorBonus +
+              voidEffect +
+              xenonEffect +
+              graphiteSpike,
+          );
+
+          const targetPower = Math.pow(reactor.reactivity, 1.3) * 5;
+          reactor.power +=
+            (targetPower - reactor.power) *
+            (reactor.isScrammed && reactor.scramTimer > 12 ? 0.2 : 0.05);
+          reactor.power = Math.max(0, reactor.power);
+
+          const heatProduction = reactor.power / 5;
+          const cooling = (reactor.temperature - 300) / 20;
+          reactor.temperature += (heatProduction - cooling) * 0.15;
+
+          reactor.xenon += (reactor.power / 100 - reactor.xenon / 500) * 0.05;
+          reactor.xenon = Math.max(0, reactor.xenon);
+
+          reactor.peakPower = Math.max(reactor.peakPower, reactor.power);
+          reactor.peakTemp = Math.max(reactor.peakTemp, reactor.temperature);
+          if (reactor.temperature < 400) reactor.timeUnder400 += 0.15;
+          else reactor.timeUnder400 = 0;
+
+          runAutopilot();
+          checkMeltdown();
+          updateDisplay();
+          checkAchievements();
+        }
+
+        function runAutopilot() {
+          if (!autopilot || reactor.isScrammed || reactor.isDestroyed) return;
+          autoTickCounter++;
+          if (autoTickCounter % 7 !== 0) return;
+          if (reactor.temperature > 700 || reactor.reactivity > 95) {
+            modifyRandomRods(6, false);
+            log("AUTOPILOT: inserting rods to reduce reactivity.");
+          } else if (reactor.temperature < 450 && reactor.reactivity < 35) {
+            modifyRandomRods(3, true);
+            log("AUTOPILOT: withdrawing rods to maintain output.");
+          }
+        }
+
+        function checkMeltdown() {
+          if (reactor.temperature > 2500 && !reactor.isDestroyed) {
+            reactor.isDestroyed = true;
+            setStatus("FATAL");
+            el.overlay.style.display = "flex";
+            thunkSound();
+            speak("Core destroyed.");
+            const survived = Math.round(
+              (Date.now() - reactor.startTime) / 1000,
+            );
+            el.meltdownStats.innerHTML = `SURVIVAL TIME: ${survived}s<br>PEAK POWER: ${reactor.peakPower.toFixed(0)} MW<br>PEAK TEMPERATURE: ${reactor.peakTemp.toFixed(0)} °C`;
+            log("CATASTROPHIC FAILURE. CORE DESTROYED.", "danger");
+            startParticles();
+            checkAchievements();
+          }
         }
 
         function updateDisplay() {
-            powerOutput.textContent = reactor.power.toFixed(2);
-            reactivityDisplay.textContent = reactor.reactivity.toFixed(2);
-            temperatureDisplay.textContent = reactor.temperature.toFixed(2);
+          el.power.textContent = reactor.power.toFixed(0);
+          el.reactivity.textContent = reactor.reactivity.toFixed(1);
+          el.temperature.textContent = reactor.temperature.toFixed(0);
 
-            tempStatus.className = '';
-            if (reactor.temperature > 700) {
-                tempStatus.textContent = '(CRITICAL)';
-                tempStatus.className = 'danger';
-                if (!isMuted && warningAudio.paused) warningAudio.play();
-            } else if (reactor.temperature > 500) {
-                tempStatus.textContent = '(WARNING)';
-                tempStatus.className = 'warning';
-                if (!isMuted && warningAudio.paused) warningAudio.play();
-            } else {
-                tempStatus.textContent = '';
-                if (!warningAudio.paused) {
-                    warningAudio.pause();
-                    warningAudio.currentTime = 0;
-                }
-            }
+          setNeedle(el.needlePower, reactor.power, 0, 4000);
+          setNeedle(el.needleReactivity, reactor.reactivity, 0, 150);
+          setNeedle(el.needleTemp, reactor.temperature, 300, 3000);
 
-            reactor.powerHistory.shift();
-            reactor.powerHistory.push(reactor.power);
-
-            reactor.tempHistory.shift();
-            reactor.tempHistory.push(reactor.temperature);
-
-            powerChart.update();
-            tempChart.update();
-        }
-
-        function getRandomElements(array, count) {
-            const result = [];
-            const taken = new Set();
-            while (result.length < count && result.length < array.length) {
-                const idx = Math.floor(Math.random() * array.length);
-                if (!taken.has(idx)) {
-                    taken.add(idx);
-                    result.push(array[idx]);
-                }
-            }
-            return result;
-        }
-
-        insertRodsBtn.addEventListener('click', () => {
-            if (reactor.isScrammed) return;
-            const rods = Array.from(document.querySelectorAll('.control-rod:not(.active)'));
-            const rodsToInsert = getRandomElements(rods, 10);
-            rodsToInsert.forEach(rod => rod.classList.add('active'));
-            updateReactorState();
-        });
-
-        withdrawRodsBtn.addEventListener('click', () => {
-            if (reactor.isScrammed) return;
-            const rods = Array.from(document.querySelectorAll('.control-rod.active'));
-            const rodsToWithdraw = getRandomElements(rods, 10);
-            rodsToWithdraw.forEach(rod => rod.classList.remove('active'));
-            updateReactorState();
-        });
-
-        scramBtn.addEventListener('click', () => {
-            reactor.isScrammed = true;
-            const rods = document.querySelectorAll('.control-rod');
-            rods.forEach(rod => rod.classList.add('active'));
-            const scramInterval = setInterval(() => {
-                reactor.power = Math.max(0, reactor.power - 100);
-                reactor.temperature = Math.max(300, reactor.temperature - 10);
-                updateDisplay();
-                if (reactor.power <= 0) clearInterval(scramInterval);
-            }, 100);
-        });
-
-        resetBtn.addEventListener('click', () => {
-            reactor.power = 0;
-            reactor.reactivity = 0;
-            reactor.temperature = 300;
-            reactor.rodsInserted = 0;
-            reactor.xenon = 0;
-            reactor.isScrammed = false;
-            reactor.powerHistory = Array(100).fill(0);
-            reactor.tempHistory = Array(100).fill(300);
-
-            powerChart.data.datasets[0].data = reactor.powerHistory;
-            tempChart.data.datasets[0].data = reactor.tempHistory;
-            powerChart.update();
-            tempChart.update();
-
-            if (!warningAudio.paused) {
-                warningAudio.pause();
-                warningAudio.currentTime = 0;
-            }
-
-            const rods = document.querySelectorAll('.control-rod');
-            rods.forEach(rod => rod.classList.remove('active'));
-
-            rods.forEach(rod => {
-                if (Math.random() < 0.15) {
-                    rod.classList.add('moderator');
-                } else {
-                    rod.classList.remove('moderator');
-                }
+          document
+            .querySelectorAll(".rod.active:not(.moderator)")
+            .forEach((r) => {
+              r.classList.toggle("hot", reactor.temperature > 900);
             });
 
-            updateDisplay();
-        });
+          let level = "NOMINAL";
+          if (reactor.temperature > 1500) level = "FATAL";
+          else if (reactor.temperature > 800) level = "DANGER";
+          else if (reactor.temperature > 500) level = "WARNING";
+          setStatus(level);
 
-        muteBtn.addEventListener('click', () => {
-            isMuted = !isMuted;
-            muteBtn.textContent = isMuted ? 'Unmute Alarm' : 'Mute Alarm';
-            if (isMuted && !warningAudio.paused) {
-                warningAudio.pause();
-                warningAudio.currentTime = 0;
-            }
-        });
-
-        function simulationLoop() {
-            if (!reactor.isScrammed) {
-                updateReactorState();
-            }
-            setTimeout(simulationLoop, 250);
+          reactor.powerHistory.shift();
+          reactor.powerHistory.push(reactor.power);
+          reactor.tempHistory.shift();
+          reactor.tempHistory.push(reactor.temperature);
+          reactor.xenonHistory.shift();
+          reactor.xenonHistory.push(reactor.xenon);
+          powerChart.update("none");
+          tempChart.update("none");
+          xenonChart.update("none");
         }
 
-        initReactor();
-        simulationLoop();
+        document.getElementById("insertRods").addEventListener("click", () => {
+          modifyRandomRods(10, false);
+          clickSound();
+          log("Operator inserted 10 control rods.");
+        });
+        document
+          .getElementById("withdrawRods")
+          .addEventListener("click", () => {
+            modifyRandomRods(10, true);
+            clickSound();
+            log("Operator withdrew 10 control rods.");
+          });
+        el.scramBtn.addEventListener("click", () => {
+          if (reactor.isDestroyed || reactor.isScrammed) return;
+          reactor.isScrammed = true;
+          reactor.scramCount++;
+          document
+            .querySelectorAll(".rod:not(.moderator):not(.empty)")
+            .forEach((r) => r.classList.add("active"));
+          thunkSound();
+          speak("AZ-5 engaged. Inserting all rods.");
+          log("AZ-5 SCRAM ENGAGED. All control rods inserting.", "warn");
+          checkAchievements();
+        });
+        document
+          .getElementById("resetBtn")
+          .addEventListener("click", () => location.reload());
+        document
+          .getElementById("restartBtn")
+          .addEventListener("click", () => location.reload());
+
+        function bindSwitch(id, onToggle) {
+          const s = document.getElementById(id);
+          s.addEventListener("click", () => {
+            s.classList.toggle("on");
+            toggleSound();
+            onToggle(s.classList.contains("on"));
+          });
+        }
+        bindSwitch("muteSwitch", (on) => {
+          muted = !on;
+          updateAlarm();
+          log(muted ? "Alarm audio muted." : "Alarm audio enabled.");
+        });
+        bindSwitch("voiceSwitch", (on) => {
+          voiceEnabled = on;
+          log(
+            voiceEnabled ? "Voice alerts enabled." : "Voice alerts disabled.",
+          );
+          if (on) speak("Voice alerts online.");
+        });
+        bindSwitch("autoSwitch", (on) => {
+          autopilot = on;
+          if (on) {
+            reactor.autopilotUsed = true;
+          }
+          log(autopilot ? "Autopilot engaged." : "Autopilot disengaged.");
+          checkAchievements();
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.repeat) return;
+
+          switch (e.key.toLowerCase()) {
+            case "arrowup":
+              e.preventDefault();
+              modifyRandomRods(10, true);
+              clickSound();
+              log("Operator withdrew 10 control rods. (keyboard)");
+              break;
+            case "arrowdown":
+              e.preventDefault();
+              modifyRandomRods(10, false);
+              clickSound();
+              log("Operator inserted 10 control rods. (keyboard)");
+              break;
+            case "a":
+              el.scramBtn.click();
+              break;
+            case "r":
+              location.reload();
+              break;
+            case "m":
+              document.getElementById("muteSwitch").click();
+              break;
+          }
+        });
+
+        initCore();
+        log("System initialized. All control rods inserted. Standing by.");
+        setStatus("NOMINAL");
+        setInterval(updateReactorState, 150);
+      })();
     </script>
-</body>
+  </body>
 </html>
