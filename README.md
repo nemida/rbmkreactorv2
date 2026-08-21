@@ -1,6 +1,6 @@
 <h1> RBMK Reactor Simulation</h1>
 
-![Project Screenshot](raa.png)
+![Project Screenshot](raa.jpeg)
 
 <p>This project simulates the behavior of a RBMK nuclear reactor core using <strong>HTML</strong>, <strong>CSS</strong>, and <strong>JavaScript</strong>. It features an interactive UI with control rods, real-time temperature and power graphs, and simplified reactor physics modeling.</p>
 
